@@ -5,7 +5,7 @@ use jsonapi::model::*;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Dog {
-    id: String,
+    id: Option<String>,
     name: String,
     age: i32,
     main_flea: Flea,
@@ -14,8 +14,17 @@ struct Dog {
 jsonapi_model!(Dog; "dog"; has one main_flea; has many fleas);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct LonelyDog {
+    id: Option<String>,
+    name: String,
+    #[serde(default)]
+    fleas: Vec<Flea>,
+}
+jsonapi_model!(LonelyDog; "lonely_dog"; has many fleas);
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Flea {
-    id: String,
+    id: Option<String>,
     name: String,
 }
 jsonapi_model!(Flea; "flea");
@@ -23,18 +32,17 @@ jsonapi_model!(Flea; "flea");
 #[test]
 fn to_jsonapi_document_and_back(){
     let dog = Dog{
-        id: "1".into(),
+        id: Some("1".to_string()),
         name: "fido".into(),
         age: 2,
-        main_flea: Flea{id: "1".into(), name: "general flea".into() },
+        main_flea: Flea{id: Some("1".to_string()), name: "general flea".into() },
         fleas: vec![
-            Flea{id: "2".into(), name: "rick".into()},
-            Flea{id: "3".into(), name: "morty".into()}
+            Flea{id: Some("2".to_string()), name: "rick".into()},
+            Flea{id: Some("3".to_string()), name: "morty".into()}
         ],
     };
     let doc = dog.to_jsonapi_document();
     let json = serde_json::to_string(&doc).unwrap();
-    println!("JSON IS:");
     let dog_doc: JsonApiDocument = serde_json::from_str(&json)
         .expect("Dog JsonApiDocument should be created from the dog json");;
     let dog_again = Dog::from_jsonapi_document(&dog_doc)
@@ -47,17 +55,17 @@ fn to_jsonapi_document_and_back(){
 fn numeric_id() {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct NumericFlea {
-        id: i32,
+        id: Option<i32>,
         name: String,
     }
     jsonapi_model!(NumericFlea; "numeric_flea");
 
     let flea = NumericFlea {
-        id: 2,
+        id: Some(2),
         name: "rick".into(),
     };
     let (res, _) = flea.to_jsonapi_resource();
-    assert_eq!(res.id, "2".to_string());
+    assert_eq!(res.id, Some("2".to_string()));
     let doc = flea.to_jsonapi_document();
     assert!(doc.is_valid());
     assert_eq!(doc.data, Some(PrimaryData::Single(Box::new(res))));
@@ -70,11 +78,11 @@ fn numeric_id() {
 fn test_vec_to_jsonapi_document() {
     let fleas = vec![
         Flea {
-            id: "2".into(),
+            id: Some("2".to_string()),
             name: "rick".into(),
         },
         Flea {
-            id: "3".into(),
+            id: Some("3".to_string()),
             name: "morty".into(),
         },
     ];
@@ -83,5 +91,19 @@ fn test_vec_to_jsonapi_document() {
 }
 
 #[test]
-fn from_jsonapi_document_and_back(){
+fn from_str_to_jsonapi_document() {
+    let dog = r#"{
+        "data": {
+            "attributes": {
+                "name": "Fido",
+                "age": 5
+            },
+            "type": "lonely_dog"
+        }
+    }"#;
+
+    let dog_doc: JsonApiDocument = serde_json::from_str(&dog)
+        .expect("Dog JsonApiDocument should be created from the dog json");
+    let dog_again = LonelyDog::from_jsonapi_document(&dog_doc)
+        .expect("Dog should be generated from the dog_doc");
 }

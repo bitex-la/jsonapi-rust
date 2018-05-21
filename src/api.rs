@@ -39,7 +39,7 @@ pub struct ResourceIdentifier {
 pub struct Resource {
     #[serde(rename = "type")]
     pub _type: String,
-    pub id: JsonApiId,
+    pub id: Option<JsonApiId>,
     #[serde(default)]
     pub attributes: ResourceAttributes,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -158,7 +158,7 @@ impl PatchSet {
     pub fn new_for(resource: &Resource) -> Self {
         PatchSet {
             resource_type: resource._type.clone(),
-            resource_id: resource.id.clone(),
+            resource_id: resource.id.clone().expect("You need the Id to patch"),
             patches: Vec::<Patch>::new(),
         }
     }

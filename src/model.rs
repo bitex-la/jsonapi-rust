@@ -14,7 +14,7 @@ pub trait JsonApiModel: Serialize
     #[doc(hidden)]
     fn jsonapi_type(&self) -> String;
     #[doc(hidden)]
-    fn jsonapi_id(&self) -> String;
+    fn jsonapi_id(&self) -> Option<String>;
     #[doc(hidden)]
     fn relationship_fields() -> Option<&'static [&'static str]>;
     #[doc(hidden)]
@@ -98,7 +98,7 @@ pub trait JsonApiModel: Serialize
     fn as_resource_identifier(&self) -> ResourceIdentifier {
         ResourceIdentifier {
             _type: self.jsonapi_type(),
-            id: self.jsonapi_id(),
+            id: self.jsonapi_id().expect("Can't have ResourceIdentifier for unsafe resource"),
         }
     }
 
@@ -133,7 +133,7 @@ pub trait JsonApiModel: Serialize
         -> Option<&'a Resource> 
     {
         for resource in haystack {
-            if resource._type == needle._type && resource.id == needle.id {
+            if resource._type == needle._type && resource.id.as_ref() == Some(&needle.id) {
                 return Some(resource)
             }
         }
@@ -146,7 +146,7 @@ pub trait JsonApiModel: Serialize
     {
         let mut new_attrs = HashMap::new();
         new_attrs.clone_from(&resource.attributes);
-        new_attrs.insert("id".into(), resource.id.clone().into());
+        new_attrs.insert("id".into(), to_value(resource.id.as_ref()).unwrap_or(Value::Null));
 
         if let Some(relations) = resource.relationships.as_ref() {
             if let Some(inc) = included.as_ref() {
@@ -221,7 +221,7 @@ macro_rules! jsonapi_model {
     ($model:ty; $type:expr) => (
         impl JsonApiModel for $model {
             fn jsonapi_type(&self) -> String { $type.to_string() }
-            fn jsonapi_id(&self) -> String { self.id.to_string() }
+            fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
             fn relationship_fields() -> Option<&'static [&'static str]> { None }
             fn build_relationships(&self) -> Option<Relationships> { None }
             fn build_included(&self) -> Option<Resources> { None }
@@ -243,7 +243,7 @@ macro_rules! jsonapi_model {
     ) => (
         impl JsonApiModel for $model {
             fn jsonapi_type(&self) -> String { $type.to_string() }
-            fn jsonapi_id(&self) -> String { self.id.to_string() }
+            fn jsonapi_id(&self) -> Option<String> { self.id.clone() }
 
             fn relationship_fields() -> Option<&'static [&'static str]> {
                 static FIELDS: &'static [&'static str] = &[
@@ -282,18 +282,3 @@ macro_rules! jsonapi_model {
         }
     );
 }
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Dog {
-    id: String,
-    name: String,
-    age: i32,
-    main_flea: Flea,
-    fleas: Vec<Flea>,
-}
-jsonapi_model!(Dog; "dog"; has one main_flea; has many fleas);
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Flea {
-    id: String,
-    name: String,
-}
-jsonapi_model!(Flea; "flea");

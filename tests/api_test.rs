@@ -12,14 +12,14 @@ fn it_works() {
     let _ = env_logger::init();
     let resource = Resource {
         _type: "test".into(),
-        id: "123".into(),
+        id: Some("123".into()),
         attributes: ResourceAttributes::new(),
         relationships: Some(Relationships::new()),
         links: None,
         meta: Some(Meta::new()),
     };
 
-    assert_eq!(resource.id, "123");
+    assert_eq!(resource.id, Some("123".into()));
 
     let serialized = serde_json::to_string(&resource).unwrap();
     let deserialized: Resource = serde_json::from_str(&serialized).unwrap();
@@ -66,7 +66,7 @@ fn jsonapi_document_can_be_valid() {
     let _ = env_logger::init();
     let resource = Resource {
         _type: "test".into(),
-        id: "123".into(),
+        id: Some("123".into()),
         attributes: ResourceAttributes::new(),
         relationships: Some(Relationships::new()),
         links: None,
@@ -97,7 +97,7 @@ fn jsonapi_document_invalid_errors() {
 
     let resource = Resource {
         _type: "test".into(),
-        id: "123".into(),
+        id: Some("123".into()),
         attributes: ResourceAttributes::new(),
         relationships: Some(Relationships::new()),
         links: None,
@@ -106,7 +106,7 @@ fn jsonapi_document_invalid_errors() {
 
     let included_resource = Resource {
         _type: "test".into(),
-        id: "123".into(),
+        id: Some("123".into()),
         attributes: ResourceAttributes::new(),
         relationships: Some(Relationships::new()),
         links: None,
@@ -299,9 +299,9 @@ fn api_document_collection_from_json_file() {
             match res.included {
                 Some(arr) => {
                     assert_eq!(arr.len(), 3);
-                    assert_eq!(arr[0].id, "9");
-                    assert_eq!(arr[1].id, "5");
-                    assert_eq!(arr[2].id, "12");
+                    assert_eq!(arr[0].id, Some("9".into()));
+                    assert_eq!(arr[1].id, Some("5".into()));
+                    assert_eq!(arr[2].id, Some("12".into()));
                 }
                 None => {
                     println!("api_document_collection_from_json_file : Expected three Resources \
@@ -482,7 +482,7 @@ fn it_omits_empty_document_and_primary_data_keys() {
     let _ = env_logger::init();
     let resource = Resource {
         _type: "test".into(),
-        id: "123".into(),
+        id: Some("123".into()),
         attributes: ResourceAttributes::new(),
         ..Default::default()
     };
