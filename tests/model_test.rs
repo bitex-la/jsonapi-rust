@@ -123,7 +123,11 @@ fn can_configure_fields_and_included() {
             Flea{id: Some("3".to_string()), name: "morty".into()}
         ],
     };
-    let doc = dog.to_jsonapi_document();
+    let mut fields = HashMap::new();
+    fields.insert("dog".to_string(), vec!["name".to_string(), "main_flea".to_string()]);
+    let doc = dog.to_jsonapi_document_with_query(&Query {
+        fields: Some(fields), include: Some(vec![]), ..Default::default()
+    });
     let json = serde_json::to_string(&doc).unwrap();
     assert_eq!(json,
       r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"},"relationships":{"main_flea":{"data":{"type":"flea","id":"1"}}}},"included":[]}"#);

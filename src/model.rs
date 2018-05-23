@@ -21,7 +21,7 @@ pub trait JsonApiModel: Serialize
     #[doc(hidden)]
     fn build_relationships(&self, query: &QueryFields) -> Option<Relationships>;
     #[doc(hidden)]
-    fn build_included(&self) -> Option<Resources>;
+    fn build_included(&self, fields: &Option<Vec<String>>) -> Option<Resources>;
 
     fn should_serialize_field(&self, query: &QueryFields, field: &String) -> bool {
       if query.is_none(){ return true }
@@ -29,6 +29,11 @@ pub trait JsonApiModel: Serialize
       let fields = hashmap.get(&self.jsonapi_type());
       if fields.is_none(){ return true }
       fields.unwrap().contains(field)
+    }
+
+    fn should_include(&self, included: &Option<Vec<String>>, field: &String) -> bool {
+        if included.is_none() { return true }
+        included.as_ref().unwrap().contains(field)
     }
 
     fn from_jsonapi_resource(resource: &Resource, included: &Option<Resources>)
@@ -70,11 +75,11 @@ pub trait JsonApiModel: Serialize
                 _type: self.jsonapi_type(),
                 id: self.jsonapi_id(),
                 relationships: self.build_relationships(&query.fields),
-                attributes: Self::extract_attributes(&attrs),
+                attributes: self.extract_attributes(&attrs, &query.fields),
                 ..Default::default()
             };
 
-            (resource, self.build_included())
+            (resource, self.build_included(&query.include))
         }else{
             panic!(format!("{} is not a Value::Object", self.jsonapi_type()))
         }
@@ -125,14 +130,17 @@ pub trait JsonApiModel: Serialize
      * with the attributes that correspond with relationships.
      * */
     #[doc(hidden)]
-    fn extract_attributes(attrs: &Map<String, Value>) -> ResourceAttributes {
+    fn extract_attributes(&self, attrs: &Map<String, Value>, query_fields: &QueryFields)
+        -> ResourceAttributes 
+    {
         attrs.iter().filter(|&(key, _)|{
             if let Some(fields) = Self::relationship_fields(){
                 if fields.contains(&key.as_str()) {
                     return false;
                 }
             }
-            true
+
+            self.should_serialize_field(query_fields, &key)
         }).map(|(k,v)|{ (k.clone(), v.clone()) }).collect()
     }
     
@@ -241,8 +249,8 @@ macro_rules! jsonapi_model {
             fn jsonapi_type(&self) -> String { $type.to_string() }
             fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
             fn relationship_fields() -> Option<&'static [&'static str]> { None }
-            fn build_relationships(&self, query: &QueryFields) -> Option<Relationships> { None }
-            fn build_included(&self) -> Option<Resources> { None }
+            fn build_relationships(&self, _query: &QueryFields) -> Option<Relationships> { None }
+            fn build_included(&self, _fields: &Option<Vec<String>>) -> Option<Resources> { None }
         }
     );
     ($model:ty; $type:expr;
@@ -284,19 +292,27 @@ macro_rules! jsonapi_model {
                     }
                 )*
                 $(
-                    relationships.insert(stringify!($has_many).into(),
-                        Self::build_has_many(&self.$has_many)
-                    );
+                    if self.should_serialize_field(fields, &stringify!($has_many).to_string()) {
+                        relationships.insert(stringify!($has_many).into(),
+                            Self::build_has_many(&self.$has_many)
+                        );
+                    }
                 )*
                 Some(relationships)
             }
             
-            fn build_included(&self) -> Option<Resources> {
+            fn build_included(&self, fields: &Option<Vec<String>>) -> Option<Resources> {
                 let mut included:Resources = vec![];
-                $( included.append(&mut self.$has_one.to_resources()); )*
+                $( 
+                    if self.should_include(fields, &stringify!($has_one).to_string()) {
+                        included.append(&mut self.$has_one.to_resources());
+                    }
+                )*
                 $(
-                    for model in &self.$has_many {
-                        included.append(&mut model.to_resources());
+                    if self.should_include(fields, &stringify!($has_many).to_string()) {
+                        for model in &self.$has_many {
+                            included.append(&mut model.to_resources());
+                        }
                     }
                 )*
                 Some(included)
