@@ -8,11 +8,13 @@ pub struct PageParams {
 }
 
 /// JSON-API Query parameters
+pub type QueryFields = Option<HashMap<String, Vec<String>>>;
+
 #[derive(Debug, PartialEq, Default)]
 pub struct Query {
     pub _type: String,
     pub include: Option<Vec<String>>,
-    pub fields: Option<HashMap<String, Vec<String>>>,
+    pub fields: QueryFields,
     pub page: Option<PageParams>,
 }
 

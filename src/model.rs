@@ -1,5 +1,6 @@
 pub use std::collections::HashMap;
 pub use api::*;
+pub use query::{Query, QueryFields};
 use errors::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value, Value, Map};
@@ -18,9 +19,17 @@ pub trait JsonApiModel: Serialize
     #[doc(hidden)]
     fn relationship_fields() -> Option<&'static [&'static str]>;
     #[doc(hidden)]
-    fn build_relationships(&self) -> Option<Relationships>;
+    fn build_relationships(&self, query: &QueryFields) -> Option<Relationships>;
     #[doc(hidden)]
     fn build_included(&self) -> Option<Resources>;
+
+    fn should_serialize_field(&self, query: &QueryFields, field: &String) -> bool {
+      if query.is_none(){ return true }
+      let hashmap = query.as_ref().unwrap();
+      let fields = hashmap.get(&self.jsonapi_type());
+      if fields.is_none(){ return true }
+      fields.unwrap().contains(field)
+    }
 
     fn from_jsonapi_resource(resource: &Resource, included: &Option<Resources>)
         -> Result<Self> 
@@ -49,12 +58,18 @@ pub trait JsonApiModel: Serialize
     }
 
     fn to_jsonapi_resource(&self) -> (Resource, Option<Resources>) {
+      self.to_jsonapi_resource_with_query(&Default::default())
+    }
+
+    fn to_jsonapi_resource_with_query(&self, query: &Query)
+      -> (Resource, Option<Resources>)
+    {
         if let Value::Object(mut attrs) = to_value(self).unwrap(){
             let _ = attrs.remove("id");
             let resource = Resource{
                 _type: self.jsonapi_type(),
                 id: self.jsonapi_id(),
-                relationships: self.build_relationships(),
+                relationships: self.build_relationships(&query.fields),
                 attributes: Self::extract_attributes(&attrs),
                 ..Default::default()
             };
@@ -67,14 +82,17 @@ pub trait JsonApiModel: Serialize
 
     
     fn to_jsonapi_document(&self) -> JsonApiDocument {
-        let (resource, included) = self.to_jsonapi_resource();
+      self.to_jsonapi_document_with_query(&Default::default())
+    }
+
+    fn to_jsonapi_document_with_query(&self, query: &Query) -> JsonApiDocument {
+        let (resource, included) = self.to_jsonapi_resource_with_query(query);
         JsonApiDocument {
             data: Some(PrimaryData::Single(Box::new(resource))),
             included: included,
             ..Default::default()
         }
     }
-
     
     #[doc(hidden)]
     fn build_has_one<M: JsonApiModel>(model: &M) -> Relationship {
@@ -223,7 +241,7 @@ macro_rules! jsonapi_model {
             fn jsonapi_type(&self) -> String { $type.to_string() }
             fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
             fn relationship_fields() -> Option<&'static [&'static str]> { None }
-            fn build_relationships(&self) -> Option<Relationships> { None }
+            fn build_relationships(&self, query: &QueryFields) -> Option<Relationships> { None }
             fn build_included(&self) -> Option<Resources> { None }
         }
     );
@@ -254,12 +272,16 @@ macro_rules! jsonapi_model {
                 Some(FIELDS)
             }
             
-            fn build_relationships(&self) -> Option<Relationships> {
+            fn build_relationships(&self, fields: &QueryFields)
+              -> Option<Relationships>
+            {
                 let mut relationships = HashMap::new();
                 $(
-                    relationships.insert(stringify!($has_one).into(),
-                        Self::build_has_one(&self.$has_one)
-                    );
+                    if self.should_serialize_field(fields, &stringify!($has_one).to_string()) {
+                      relationships.insert(stringify!($has_one).into(),
+                          Self::build_has_one(&self.$has_one)
+                      );
+                    }
                 )*
                 $(
                     relationships.insert(stringify!($has_many).into(),

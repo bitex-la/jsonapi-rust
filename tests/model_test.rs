@@ -1,5 +1,6 @@
 #[macro_use] extern crate jsonapi;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate pretty_assertions;
 extern crate serde_json;
 use jsonapi::model::*;
 
@@ -106,6 +107,25 @@ fn from_str_to_jsonapi_document() {
 
     let dog_doc: JsonApiDocument = serde_json::from_str(&dog)
         .expect("Dog JsonApiDocument should be created from the dog json");
-    let dog_again = LonelyDog::from_jsonapi_document(&dog_doc)
+    LonelyDog::from_jsonapi_document(&dog_doc)
         .expect("Dog should be generated from the dog_doc");
 }
+
+#[test]
+fn can_configure_fields_and_included() {
+    let dog = Dog{
+        id: Some("1".to_string()),
+        name: "fido".into(),
+        age: 2,
+        main_flea: Flea{id: Some("1".to_string()), name: "general flea".into() },
+        fleas: vec![
+            Flea{id: Some("2".to_string()), name: "rick".into()},
+            Flea{id: Some("3".to_string()), name: "morty".into()}
+        ],
+    };
+    let doc = dog.to_jsonapi_document();
+    let json = serde_json::to_string(&doc).unwrap();
+    assert_eq!(json,
+      r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"},"relationships":{"main_flea":{"data":{"type":"flea","id":"1"}}}},"included":[]}"#);
+}
+
