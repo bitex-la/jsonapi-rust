@@ -243,7 +243,7 @@ macro_rules! jsonapi_model {
     ) => (
         impl JsonApiModel for $model {
             fn jsonapi_type(&self) -> String { $type.to_string() }
-            fn jsonapi_id(&self) -> Option<String> { self.id.clone() }
+            fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
 
             fn relationship_fields() -> Option<&'static [&'static str]> {
                 static FIELDS: &'static [&'static str] = &[

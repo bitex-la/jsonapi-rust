@@ -57,12 +57,14 @@ fn numeric_id() {
     struct NumericFlea {
         id: Option<i32>,
         name: String,
+        children: Vec<NumericFlea>
     }
-    jsonapi_model!(NumericFlea; "numeric_flea");
+    jsonapi_model!(NumericFlea; "numeric_flea"; has many children);
 
     let flea = NumericFlea {
         id: Some(2),
         name: "rick".into(),
+        children: vec![]
     };
     let (res, _) = flea.to_jsonapi_resource();
     assert_eq!(res.id, Some("2".to_string()));
