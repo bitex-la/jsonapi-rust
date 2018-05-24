@@ -213,12 +213,13 @@ pub trait JsonApiModel: Serialize
 
 pub fn vec_to_jsonapi_resources<T: JsonApiModel>(
     objects: Vec<T>,
+    query: &Query,
 ) -> (Resources, Option<Resources>) {
     let mut included = vec![];
     let resources = objects
         .iter()
         .map(|obj| {
-            let (res, mut opt_incl) = obj.to_jsonapi_resource();
+            let (res, mut opt_incl) = obj.to_jsonapi_resource_with_query(query);
             if let Some(ref mut incl) = opt_incl {
                 included.append(incl);
             }
@@ -234,7 +235,13 @@ pub fn vec_to_jsonapi_resources<T: JsonApiModel>(
 }
 
 pub fn vec_to_jsonapi_document<T: JsonApiModel>(objects: Vec<T>) -> JsonApiDocument {
-    let (resources, included) = vec_to_jsonapi_resources(objects);
+  vec_to_jsonapi_document_with_query(objects, &Default::default())
+}
+
+pub fn vec_to_jsonapi_document_with_query<T: JsonApiModel>(
+    objects: Vec<T>, query: &Query) -> JsonApiDocument
+{
+    let (resources, included) = vec_to_jsonapi_resources(objects, query);
     JsonApiDocument {
         data: Some(PrimaryData::Multiple(resources)),
         included: included,

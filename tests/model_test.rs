@@ -30,6 +30,19 @@ struct Flea {
 }
 jsonapi_model!(Flea; "flea");
 
+fn dog_with_fleas() -> Dog {
+    Dog{
+        id: Some("1".to_string()),
+        name: "fido".into(),
+        age: 2,
+        main_flea: Flea{id: Some("1".to_string()), name: "general flea".into() },
+        fleas: vec![
+            Flea{id: Some("2".to_string()), name: "rick".into()},
+            Flea{id: Some("3".to_string()), name: "morty".into()}
+        ],
+    }
+}
+
 #[test]
 fn to_jsonapi_document_and_back(){
     let dog = Dog{
@@ -94,6 +107,19 @@ fn test_vec_to_jsonapi_document() {
 }
 
 #[test]
+fn can_serialize_a_vector_with_query() {
+    let dogs = vec![
+        dog_with_fleas(),
+        dog_with_fleas()
+    ];
+    let doc = vec_to_jsonapi_document_with_query(dogs,
+        &Query::from_params("include=[]&fields[dog]=name"));
+    let json = serde_json::to_string(&doc).unwrap();
+    assert_eq!(json,
+      r#"{"data":[{"type":"dog","id":"1","attributes":{"name":"fido"}},{"type":"dog","id":"1","attributes":{"name":"fido"}}]}"#);
+}
+
+#[test]
 fn from_str_to_jsonapi_document() {
     let dog = r#"{
         "data": {
@@ -109,19 +135,6 @@ fn from_str_to_jsonapi_document() {
         .expect("Dog JsonApiDocument should be created from the dog json");
     LonelyDog::from_jsonapi_document(&dog_doc)
         .expect("Dog should be generated from the dog_doc");
-}
-
-fn dog_with_fleas() -> Dog {
-    Dog{
-        id: Some("1".to_string()),
-        name: "fido".into(),
-        age: 2,
-        main_flea: Flea{id: Some("1".to_string()), name: "general flea".into() },
-        fleas: vec![
-            Flea{id: Some("2".to_string()), name: "rick".into()},
-            Flea{id: Some("3".to_string()), name: "morty".into()}
-        ],
-    }
 }
 
 #[test]
@@ -143,4 +156,3 @@ fn omits_relationships_if_empty() {
     assert_eq!(json,
       r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"}}}"#);
 }
-
