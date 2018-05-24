@@ -23,17 +23,17 @@ pub trait JsonApiModel: Serialize
     #[doc(hidden)]
     fn build_included(&self, fields: &Option<Vec<String>>) -> Option<Resources>;
 
-    fn should_serialize_field(&self, query: &QueryFields, field: &String) -> bool {
+    fn should_serialize_field(&self, query: &QueryFields, field: &str) -> bool {
       if query.is_none(){ return true }
       let hashmap = query.as_ref().unwrap();
       let fields = hashmap.get(&self.jsonapi_type());
       if fields.is_none(){ return true }
-      fields.unwrap().contains(field)
+      fields.unwrap().contains(&field.to_string())
     }
 
-    fn should_include(&self, included: &Option<Vec<String>>, field: &String) -> bool {
+    fn should_include(&self, included: &Option<Vec<String>>, field: &str) -> bool {
         if included.is_none() { return true }
-        included.as_ref().unwrap().contains(field)
+        included.as_ref().unwrap().contains(&field.to_string())
     }
 
     fn from_jsonapi_resource(resource: &Resource, included: &Option<Resources>)
@@ -285,14 +285,14 @@ macro_rules! jsonapi_model {
             {
                 let mut relationships = HashMap::new();
                 $(
-                    if self.should_serialize_field(fields, &stringify!($has_one).to_string()) {
+                    if self.should_serialize_field(fields, stringify!($has_one)) {
                       relationships.insert(stringify!($has_one).into(),
                           Self::build_has_one(&self.$has_one)
                       );
                     }
                 )*
                 $(
-                    if self.should_serialize_field(fields, &stringify!($has_many).to_string()) {
+                    if self.should_serialize_field(fields, stringify!($has_many)) {
                         relationships.insert(stringify!($has_many).into(),
                             Self::build_has_many(&self.$has_many)
                         );
@@ -304,18 +304,22 @@ macro_rules! jsonapi_model {
             fn build_included(&self, fields: &Option<Vec<String>>) -> Option<Resources> {
                 let mut included:Resources = vec![];
                 $( 
-                    if self.should_include(fields, &stringify!($has_one).to_string()) {
+                    if self.should_include(fields, stringify!($has_one)) {
                         included.append(&mut self.$has_one.to_resources());
                     }
                 )*
                 $(
-                    if self.should_include(fields, &stringify!($has_many).to_string()) {
+                    if self.should_include(fields, stringify!($has_many)) {
                         for model in &self.$has_many {
                             included.append(&mut model.to_resources());
                         }
                     }
                 )*
-                Some(included)
+                if included.is_empty() {
+                  None
+                } else {
+                  Some(included)
+                }
             }
         }
     );

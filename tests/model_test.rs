@@ -130,6 +130,6 @@ fn can_configure_fields_and_included() {
     });
     let json = serde_json::to_string(&doc).unwrap();
     assert_eq!(json,
-      r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"},"relationships":{"main_flea":{"data":{"type":"flea","id":"1"}}}},"included":[]}"#);
+      r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"},"relationships":{"main_flea":{"data":{"type":"flea","id":"1"}}}}}"#);
 }
 
