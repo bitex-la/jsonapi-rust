@@ -13,7 +13,7 @@ pub trait JsonApiModel: Serialize
     where for<'de> Self: Deserialize<'de>
 {
     #[doc(hidden)]
-    fn jsonapi_type(&self) -> String;
+    fn jsonapi_type() -> &'static str;
     #[doc(hidden)]
     fn jsonapi_id(&self) -> Option<String>;
     #[doc(hidden)]
@@ -26,7 +26,7 @@ pub trait JsonApiModel: Serialize
     fn should_serialize_field(&self, query: &QueryFields, field: &str) -> bool {
       if query.is_none(){ return true }
       let hashmap = query.as_ref().unwrap();
-      let fields = hashmap.get(&self.jsonapi_type());
+      let fields = hashmap.get(&Self::jsonapi_type().to_string());
       if fields.is_none(){ return true }
       fields.unwrap().contains(&field.to_string())
     }
@@ -72,7 +72,7 @@ pub trait JsonApiModel: Serialize
         if let Value::Object(mut attrs) = to_value(self).unwrap(){
             let _ = attrs.remove("id");
             let resource = Resource{
-                _type: self.jsonapi_type(),
+                _type: Self::jsonapi_type().into(),
                 id: self.jsonapi_id(),
                 relationships: self.build_relationships(&query.fields),
                 attributes: self.extract_attributes(&attrs, &query.fields),
@@ -81,7 +81,7 @@ pub trait JsonApiModel: Serialize
 
             (resource, self.build_included(&query.include))
         }else{
-            panic!(format!("{} is not a Value::Object", self.jsonapi_type()))
+            panic!(format!("{} is not a Value::Object", Self::jsonapi_type()))
         }
     }
 
@@ -120,7 +120,7 @@ pub trait JsonApiModel: Serialize
     #[doc(hidden)]
     fn as_resource_identifier(&self) -> ResourceIdentifier {
         ResourceIdentifier {
-            _type: self.jsonapi_type(),
+            _type: Self::jsonapi_type().into(),
             id: self.jsonapi_id().expect("Can't have ResourceIdentifier for unsafe resource"),
         }
     }
@@ -253,7 +253,7 @@ pub fn vec_to_jsonapi_document_with_query<T: JsonApiModel>(
 macro_rules! jsonapi_model {
     ($model:ty; $type:expr) => (
         impl JsonApiModel for $model {
-            fn jsonapi_type(&self) -> String { $type.to_string() }
+            fn jsonapi_type() -> &'static str { $type }
             fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
             fn relationship_fields() -> Option<&'static [&'static str]> { None }
             fn build_relationships(&self, _query: &QueryFields) -> Option<Relationships> { None }
@@ -275,7 +275,7 @@ macro_rules! jsonapi_model {
         has many $( $has_many:ident ),*
     ) => (
         impl JsonApiModel for $model {
-            fn jsonapi_type(&self) -> String { $type.to_string() }
+            fn jsonapi_type() -> &'static str { $type }
             fn jsonapi_id(&self) -> Option<String> { self.id.clone().map(|s| s.to_string()) }
 
             fn relationship_fields() -> Option<&'static [&'static str]> {
