@@ -298,7 +298,11 @@ macro_rules! jsonapi_model {
                         );
                     }
                 )*
-                Some(relationships)
+                if relationships.is_empty() {
+                  None
+                } else {
+                  Some(relationships)
+                }
             }
             
             fn build_included(&self, fields: &Option<Vec<String>>) -> Option<Resources> {

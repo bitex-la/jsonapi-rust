@@ -111,9 +111,8 @@ fn from_str_to_jsonapi_document() {
         .expect("Dog should be generated from the dog_doc");
 }
 
-#[test]
-fn can_configure_fields_and_included() {
-    let dog = Dog{
+fn dog_with_fleas() -> Dog {
+    Dog{
         id: Some("1".to_string()),
         name: "fido".into(),
         age: 2,
@@ -122,14 +121,26 @@ fn can_configure_fields_and_included() {
             Flea{id: Some("2".to_string()), name: "rick".into()},
             Flea{id: Some("3".to_string()), name: "morty".into()}
         ],
-    };
-    let mut fields = HashMap::new();
-    fields.insert("dog".to_string(), vec!["name".to_string(), "main_flea".to_string()]);
-    let doc = dog.to_jsonapi_document_with_query(&Query {
-        fields: Some(fields), include: Some(vec![]), ..Default::default()
-    });
+    }
+}
+
+#[test]
+fn can_configure_fields_and_included() {
+    let doc = dog_with_fleas()
+        .to_jsonapi_document_with_query(
+            &Query::from_params("include=[]&fields[dog]=name,main_flea"));
     let json = serde_json::to_string(&doc).unwrap();
     assert_eq!(json,
       r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"},"relationships":{"main_flea":{"data":{"type":"flea","id":"1"}}}}}"#);
+}
+
+#[test]
+fn omits_relationships_if_empty() {
+    let doc = dog_with_fleas()
+        .to_jsonapi_document_with_query(
+            &Query::from_params("include=[]&fields[dog]=name"));
+    let json = serde_json::to_string(&doc).unwrap();
+    assert_eq!(json,
+      r#"{"data":{"type":"dog","id":"1","attributes":{"name":"fido"}}}"#);
 }
 
